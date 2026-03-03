@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import {
   MapContainer,
   TileLayer,
@@ -8,8 +7,28 @@ import {
   Popup,
   useMap,
 } from "react-leaflet";
+import { useEffect } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+
+/* -----------------------------
+   FIX Leaflet marker icon issue
+------------------------------ */
+
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl:
+    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+  iconUrl:
+    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+  shadowUrl:
+    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+});
+
+/* -----------------------------
+   Types
+------------------------------ */
 
 export interface Partner {
   id: number;
@@ -18,79 +37,40 @@ export interface Partner {
   lng: number;
 }
 
-/* ---------- ICON FIX ---------- */
-
-const defaultIcon = new L.Icon({
-  iconUrl:
-    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-  iconRetinaUrl:
-    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-  shadowUrl:
-    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-});
-
-const selectedIcon = new L.Icon({
-  iconUrl:
-    "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png",
-  shadowUrl:
-    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-});
-
-/* ---------- MAP CONTROLLER ---------- */
-
-function MapController({
-  selectedPartner,
-}: {
+interface Props {
+  partners: Partner[];
   selectedPartner: Partner | null;
-}) {
+}
+
+/* -----------------------------
+   Fly to selected partner
+------------------------------ */
+
+function FlyToPartner({ partner }: { partner: Partner | null }) {
   const map = useMap();
 
   useEffect(() => {
-    if (selectedPartner) {
-      map.flyTo(
-        [selectedPartner.lat, selectedPartner.lng],
-        9,
-        { duration: 1.2 }
-      );
+    if (partner) {
+      map.flyTo([partner.lat, partner.lng], 14, {
+        duration: 1.5,
+      });
     }
-  }, [selectedPartner, map]);
+  }, [partner, map]);
 
   return null;
 }
 
+/* -----------------------------
+   Main Component
+------------------------------ */
+
 export default function PartnerMap({
   partners,
   selectedPartner,
-}: {
-  partners: Partner[];
-  selectedPartner: Partner | null;
-}) {
-  const [mounted, setMounted] = useState(false);
-  const markerRefs = useRef<Record<number, L.Marker>>({});
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  // Auto open popup when selected changes
-  useEffect(() => {
-    if (selectedPartner) {
-      const marker = markerRefs.current[selectedPartner.id];
-      if (marker) {
-        marker.openPopup();
-      }
-    }
-  }, [selectedPartner]);
-
-  if (!mounted) return null;
-
+}: Props) {
   return (
     <MapContainer
-      center={[39, 22]}
+      center={[39.0742, 21.8243]} // Κέντρο Ελλάδας
       zoom={6}
       style={{ width: "100%", height: "100%" }}
     >
@@ -99,22 +79,26 @@ export default function PartnerMap({
         attribution="&copy; OpenStreetMap contributors"
       />
 
-      <MapController selectedPartner={selectedPartner} />
+      <FlyToPartner partner={selectedPartner} />
 
       {partners.map((p) => {
-        const isSelected = selectedPartner?.id === p.id;
+        const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}`;
 
         return (
-          <Marker
-            key={p.id}
-            position={[p.lat, p.lng]}
-            icon={isSelected ? selectedIcon : defaultIcon}
-            ref={(ref) => {
-              if (ref) markerRefs.current[p.id] = ref;
-            }}
-          >
+          <Marker key={p.id} position={[p.lat, p.lng]}>
             <Popup>
-              <strong>{p.name}</strong>
+              <div className="space-y-2">
+                <div className="font-semibold">{p.name}</div>
+
+                <a
+                  href={googleMapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 underline text-sm"
+                >
+                  Οδηγίες μέσω Google Maps
+                </a>
+              </div>
             </Popup>
           </Marker>
         );
@@ -122,6 +106,3 @@ export default function PartnerMap({
     </MapContainer>
   );
 }
-
-
-
