@@ -4,124 +4,95 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
 export default function AdminPage() {
-
   const [name, setName] = useState("");
-  const [address, setAddress] = useState("");
-  const [phone, setPhone] = useState("");
-  const [lat, setLat] = useState("");
-  const [lng, setLng] = useState("");
-  const [mapsUrl, setMapsUrl] = useState("");
-
+  const [mapsLink, setMapsLink] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
-  const addPartner = async () => {
+  function extractCoords(url: string) {
+    try {
+      const regex = /@(-?\d+\.\d+),(-?\d+\.\d+)/;
+      const match = url.match(regex);
+
+      if (!match) return null;
+
+      return {
+        lat: parseFloat(match[1]),
+        lng: parseFloat(match[2]),
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  async function addPartner() {
     setLoading(true);
     setMessage("");
+
+    const coords = extractCoords(mapsLink);
+
+    if (!coords) {
+      setMessage("❌ Δεν βρέθηκαν συντεταγμένες στο link");
+      setLoading(false);
+      return;
+    }
 
     const { error } = await supabase.from("partners").insert([
       {
         name: name,
-        address: address,
-        phone: phone,
-        lat: parseFloat(lat),
-        lng: parseFloat(lng),
-        maps_url: mapsUrl
-      }
+        lat: coords.lat,
+        lng: coords.lng,
+        google_maps_link: mapsLink,
+      },
     ]);
 
     if (error) {
-      setMessage("Σφάλμα: " + error.message);
+      setMessage("❌ Σφάλμα αποθήκευσης");
     } else {
-      setMessage("Ο συνεργάτης προστέθηκε!");
+      setMessage("✅ Partner προστέθηκε!");
       setName("");
-      setAddress("");
-      setPhone("");
-      setLat("");
-      setLng("");
-      setMapsUrl("");
+      setMapsLink("");
     }
 
     setLoading(false);
-  };
+  }
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+    <div className="max-w-xl mx-auto p-8 space-y-6">
+      <h1 className="text-2xl font-bold">Admin Panel</h1>
 
-      <div className="bg-white p-8 rounded-2xl shadow-lg w-[420px]">
+      <div className="space-y-4">
 
-        <h1 className="text-2xl font-semibold mb-6">
-          Προσθήκη Συνεργάτη
-        </h1>
+        <input
+          type="text"
+          placeholder="Όνομα συνεργάτη"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="w-full border p-3 rounded"
+        />
 
-        <div className="space-y-4">
+        <input
+          type="text"
+          placeholder="Google Maps link"
+          value={mapsLink}
+          onChange={(e) => setMapsLink(e.target.value)}
+          className="w-full border p-3 rounded"
+        />
 
-          <input
-            type="text"
-            placeholder="Όνομα συνεργάτη"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full border rounded-lg px-3 py-2"
-          />
+        <button
+          onClick={addPartner}
+          disabled={loading}
+          className="bg-blue-600 text-white px-6 py-3 rounded"
+        >
+          Προσθήκη Partner
+        </button>
 
-          <input
-            type="text"
-            placeholder="Διεύθυνση"
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            className="w-full border rounded-lg px-3 py-2"
-          />
-
-          <input
-            type="text"
-            placeholder="Τηλέφωνο"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            className="w-full border rounded-lg px-3 py-2"
-          />
-
-          <input
-            type="text"
-            placeholder="Latitude"
-            value={lat}
-            onChange={(e) => setLat(e.target.value)}
-            className="w-full border rounded-lg px-3 py-2"
-          />
-
-          <input
-            type="text"
-            placeholder="Longitude"
-            value={lng}
-            onChange={(e) => setLng(e.target.value)}
-            className="w-full border rounded-lg px-3 py-2"
-          />
-
-          <input
-            type="text"
-            placeholder="Google Maps link"
-            value={mapsUrl}
-            onChange={(e) => setMapsUrl(e.target.value)}
-            className="w-full border rounded-lg px-3 py-2"
-          />
-
-          <button
-            onClick={addPartner}
-            disabled={loading}
-            className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700"
-          >
-            {loading ? "Προσθήκη..." : "Προσθήκη συνεργάτη"}
-          </button>
-
-          {message && (
-            <div className="text-sm text-center mt-2">
-              {message}
-            </div>
-          )}
-
-        </div>
+        {message && (
+          <div className="text-sm">{message}</div>
+        )}
 
       </div>
-
     </div>
   );
 }
+
